@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minuteur Math 360</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #F5F6F5;
+    --panel-bg: #FFFFFF;
+    --text: #2E3538;
+    --muted: #6B7678;
+    --border: #DDE3E3;
+
+    --timer-normal: #3E7C86;
+    --timer-normal-bg: #E7F2F3;
+    --timer-pause: #7C6FA0;
+    --timer-pause-bg: #EFEAF6;
+    --timer-done: #4F8C68;
+    --timer-done-bg: #E7F4EC;
+
+    --image-panel-bg: #EFF1F1;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #1E2224;
+      --panel-bg: #262B2D;
+      --text: #E5E9EA;
+      --muted: #9AA3A5;
+      --border: #3A4143;
+
+      --timer-normal: #7FC4CF;
+      --timer-normal-bg: #24393C;
+      --timer-pause: #B4A6D6;
+      --timer-pause-bg: #322C42;
+      --timer-done: #8FCBA4;
+      --timer-done-bg: #24382C;
+
+      --image-panel-bg: #2A2F31;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #1E2224;
+    --panel-bg: #262B2D;
+    --text: #E5E9EA;
+    --muted: #9AA3A5;
+    --border: #3A4143;
+
+    --timer-normal: #7FC4CF;
+    --timer-normal-bg: #24393C;
+    --timer-pause: #B4A6D6;
+    --timer-pause-bg: #322C42;
+    --timer-done: #8FCBA4;
+    --timer-done-bg: #24382C;
+
+    --image-panel-bg: #2A2F31;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .controls {
+    flex: 0 0 auto;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .field label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .field input[type="number"] {
+    width: 90px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+  }
+
+  .file-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .file-field .file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="file"] {
+    font-size: 0.85rem;
+    color: var(--text);
+    max-width: 220px;
+  }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+  }
+
+  button {
+    padding: 10px 20px;
+    border-radius: 9px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  #start-btn {
+    background: var(--timer-normal);
+    color: #FFFFFF;
+  }
+
+  #reset-btn {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .image-panel {
+    flex: 1.3;
+    min-height: 0;
+    background: var(--image-panel-bg);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .image-panel img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: none;
+  }
+
+  .placeholder {
+    color: var(--muted);
+    font-size: 1.1rem;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  .timer-panel {
+    flex: 1;
+    min-height: 0;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--timer-normal-bg);
+    color: var(--timer-normal);
+    transition: background-color 0.6s ease, color 0.6s ease;
+  }
+
+  .timer-panel.state-pause {
+    background: var(--timer-pause-bg);
+    color: var(--timer-pause);
+  }
+
+  .timer-panel.state-done {
+    background: var(--timer-done-bg);
+    color: var(--timer-done);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .time-display {
+    font-size: clamp(4rem, 14vw, 11rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .status-badge {
+    margin-top: 10px;
+    font-size: clamp(0.9rem, 2vw, 1.3rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+
+  @media (max-width: 640px) {
+    .buttons { margin-left: 0; width: 100%; }
+    .buttons button { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="controls">
+    <div class="file-field">
+      <label for="file-input">Image</label>
+      <div class="file-row">
+        <input type="file" id="file-input" accept="image/*">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="total-minutes">Durée totale (min)</label>
+      <input type="number" id="total-minutes" value="20" min="1" step="1">
+    </div>
+
+    <div class="field">
+      <label for="pause-minutes">Pause avant la fin (min)</label>
+      <input type="number" id="pause-minutes" value="5" min="0" step="1">
+    </div>
+
+    <div class="buttons">
+      <button id="start-btn">Démarrer</button>
+      <button id="reset-btn">Réinitialiser</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="image-panel">
+      <img id="preview-img" alt="Image importée">
+      <div class="placeholder" id="img-placeholder">Aucune image importée</div>
+    </div>
+
+    <div class="timer-panel state-normal" id="timer-panel">
+      <div class="time-display" id="time-display">20:00</div>
+      <div class="status-badge" id="status-badge">En cours</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentObjectUrl = null;
+  let timerInterval = null;
+  let pauseSeconds = 0;
+  let remainingSeconds = 0;
+
+  const imgEl = document.getElementById('preview-img');
+  const placeholderEl = document.getElementById('img-placeholder');
+  const fileInput = document.getElementById('file-input');
+  const totalInput = document.getElementById('total-minutes');
+  const pauseInput = document.getElementById('pause-minutes');
+  const startBtn = document.getElementById('start-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const timeDisplay = document.getElementById('time-display');
+  const statusBadge = document.getElementById('status-badge');
+  const timerPanel = document.getElementById('timer-panel');
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (currentObjectUrl) {
+      URL.revokeObjectURL(currentObjectUrl);
+    }
+    currentObjectUrl = URL.createObjectURL(file);
+
+    imgEl.src = currentObjectUrl;
+    imgEl.style.display = 'block';
+    placeholderEl.style.display = 'none';
+  });
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+
+  function setState(state) {
+    timerPanel.classList.remove('state-normal', 'state-pause', 'state-done');
+    timerPanel.classList.add(`state-${state}`);
+    const labels = { normal: 'En cours', pause: 'Pause', done: 'Terminé' };
+    statusBadge.textContent = labels[state];
+  }
+
+  function updateDisplay() {
+    timeDisplay.textContent = formatTime(remainingSeconds);
+    if (remainingSeconds <= 0) {
+      setState('done');
+    } else if (remainingSeconds <= pauseSeconds) {
+      setState('pause');
+    } else {
+      setState('normal');
+    }
+  }
+
+  function tick() {
+    remainingSeconds--;
+    if (remainingSeconds <= 0) {
+      remainingSeconds = 0;
+      updateDisplay();
+      clearInterval(timerInterval);
+      timerInterval = null;
+      return;
+    }
+    updateDisplay();
+  }
+
+  startBtn.addEventListener('click', () => {
+    const totalMin = Math.max(1, parseInt(totalInput.value, 10) || 1);
+    const pauseMin = Math.max(0, parseInt(pauseInput.value, 10) || 0);
+    const totalSeconds = totalMin * 60;
+    pauseSeconds = Math.min(pauseMin * 60, totalSeconds);
+    remainingSeconds = totalSeconds;
+
+    if (timerInterval) clearInterval(timerInterval);
+    updateDisplay();
+    timerInterval = setInterval(tick, 1000);
+
+    totalInput.disabled = true;
+    pauseInput.disabled = true;
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+
+    const totalMin = Math.max(1, parseInt(totalInput.value, 10) || 1);
+    remainingSeconds = totalMin * 60;
+    updateDisplay();
+
+    totalInput.disabled = false;
+    pauseInput.disabled = false;
+  });
+
+  // Affichage initial
+  remainingSeconds = (parseInt(totalInput.value, 10) || 20) * 60;
+  pauseSeconds = (parseInt(pauseInput.value, 10) || 0) * 60;
+  timeDisplay.textContent = formatTime(remainingSeconds);
+  setState('normal');
+</script>
+</body>
+</html>
