@@ -392,6 +392,21 @@
   pauseSeconds = (parseInt(pauseInput.value, 10) || 0) * 60;
   timeDisplay.textContent = formatTime(remainingSeconds);
   setState('normal');
+
+  // Empêche l'écran de s'éteindre/se verrouiller pendant que cette page est ouverte
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch (err) {
+      // Silencieux : certains navigateurs/contextes refusent le wake lock, tant pis
+    }
+  }
+  requestWakeLock();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
 </script>
 </body>
 </html>
