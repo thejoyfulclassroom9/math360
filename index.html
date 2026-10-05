@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minuteur Math 360</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #F5F6F5;
+    --panel-bg: #FFFFFF;
+    --text: #2E3538;
+    --muted: #6B7678;
+    --border: #DDE3E3;
+
+    --timer-normal: #3E7C86;
+    --timer-normal-bg: #E7F2F3;
+    --timer-pause: #7C6FA0;
+    --timer-pause-bg: #EFEAF6;
+    --timer-collation: #B4672E;
+    --timer-collation-bg: #FBEEE3;
+    --timer-defi: #B83F57;
+    --timer-defi-bg: #FBE6EA;
+    --timer-done: #4F8C68;
+    --timer-done-bg: #E7F4EC;
+
+    --image-panel-bg: #EFF1F1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1E2224;
+      --panel-bg: #262B2D;
+      --text: #E5E9EA;
+      --muted: #9AA3A5;
+      --border: #3A4143;
+      --timer-normal: #7FC4CF;
+      --timer-normal-bg: #24393C;
+      --timer-pause: #B4A6D6;
+      --timer-pause-bg: #322C42;
+      --timer-collation: #E8A874;
+      --timer-collation-bg: #3E2F22;
+      --timer-defi: #F08CA0;
+      --timer-defi-bg: #42252C;
+      --timer-done: #8FCBA4;
+      --timer-done-bg: #24382C;
+      --image-panel-bg: #2A2F31;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #1E2224;
+    --panel-bg: #262B2D;
+    --text: #E5E9EA;
+    --muted: #9AA3A5;
+    --border: #3A4143;
+    --timer-normal: #7FC4CF;
+    --timer-normal-bg: #24393C;
+    --timer-pause: #B4A6D6;
+    --timer-pause-bg: #322C42;
+    --timer-collation: #E8A874;
+    --timer-collation-bg: #3E2F22;
+    --timer-defi: #F08CA0;
+    --timer-defi-bg: #42252C;
+    --timer-done: #8FCBA4;
+    --timer-done-bg: #24382C;
+    --image-panel-bg: #2A2F31;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+  /* ---------- Réglages ---------- */
+  .controls {
+    flex: 0 0 auto;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 18px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .app.running .controls { display: none; }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+  }
+  .row + .row { border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .row-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    align-self: center;
+    min-width: 70px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field > label, .field > .lbl {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  input[type="number"] {
+    width: 80px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+  }
+  input[type="file"] { font-size: 0.82rem; color: var(--text); max-width: 200px; }
+
+  /* Boîtes cliquables (choix exclusif) */
+  .choices { display: flex; gap: 8px; }
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--bg);
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  .choice input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+  .choice input[type="number"] { width: 58px; padding: 4px 6px; font-size: 0.9rem; }
+  .choice small { color: var(--muted); font-weight: 500; }
+  .choice.pause:has(input[type="radio"]:checked) {
+    border-color: var(--timer-pause); background: var(--timer-pause-bg); color: var(--timer-pause);
+  }
+  .choice.collation:has(input[type="radio"]:checked) {
+    border-color: var(--timer-collation); background: var(--timer-collation-bg); color: var(--timer-collation);
+  }
+  .choice.mode:has(input[type="radio"]:checked) {
+    border-color: var(--timer-defi); background: var(--timer-defi-bg); color: var(--timer-defi);
+  }
+  .choice:focus-within { outline: 2px solid var(--timer-normal); outline-offset: 2px; }
+
+  .toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; font-size: 0.9rem; cursor: pointer; align-self: center;
+  }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--timer-defi); }
+  .defi-fields { display: contents; }
+  .defi-off .defi-fields > * { opacity: 0.4; pointer-events: none; }
+
+  .msg { color: var(--timer-defi); font-size: 0.85rem; font-weight: 600; align-self: center; }
+
+  .buttons { display: flex; gap: 10px; margin-left: auto; }
+  button {
+    padding: 10px 20px;
+    border-radius: 9px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #start-btn { background: var(--timer-normal); color: #FFFFFF; }
+  #reset-btn { background: transparent; color: var(--text); border: 1px solid var(--border); }
+
+  /* Bouton flottant pendant le décompte */
+  #settings-btn {
+    display: none;
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: 12px;
+    z-index: 10;
+    padding: 8px 12px;
+    background: var(--panel-bg);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    opacity: 0.6;
+  }
+  #settings-btn:hover { opacity: 1; }
+  .app.running #settings-btn { display: block; }
+
+  /* ---------- Affichage ---------- */
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .image-panel {
+    flex: 1.3;
+    min-height: 0;
+    background: var(--image-panel-bg);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .image-panel img { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+  .placeholder { color: var(--muted); font-size: 1.1rem; text-align: center; padding: 0 20px; }
+
+  .timer-panel {
+    flex: 1;
+    min-height: 0;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--timer-normal-bg);
+    color: var(--timer-normal);
+    transition: background-color 0.6s ease, color 0.6s ease;
+  }
+  .timer-panel.state-pause { background: var(--timer-pause-bg); color: var(--timer-pause); }
+  .timer-panel.state-collation { background: var(--timer-collation-bg); color: var(--timer-collation); }
+  .timer-panel.state-defi { background: var(--timer-defi-bg); color: var(--timer-defi); }
+  .timer-panel.state-done {
+    background: var(--timer-done-bg);
+    color: var(--timer-done);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) { .timer-panel.state-done { animation: none; } }
+
+  .time-display {
+    font-size: clamp(4rem, 14vw, 11rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .status-badge {
+    margin-top: 10px;
+    font-size: clamp(0.9rem, 2vw, 1.3rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .defi-countdown {
+    margin-top: 6px;
+    font-size: clamp(0.85rem, 1.8vw, 1.15rem);
+    font-weight: 600;
+    min-height: 1.3em;
+  }
+
+  @media (max-width: 640px) {
+    .buttons { margin-left: 0; width: 100%; }
+    .buttons button { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <button id="settings-btn" title="Afficher les réglages">⚙️ Réglages</button>
+
+  <div class="controls">
+    <!-- Ligne 1 : durée + fin de période -->
+    <div class="row">
+      <div class="field">
+        <label for="total-minutes">Durée totale (min)</label>
+        <input type="number" id="total-minutes" value="30" min="1" step="1">
+      </div>
+
+      <div class="field">
+        <span class="lbl">Fin de période</span>
+        <div class="choices" role="radiogroup">
+          <label class="choice pause">
+            <input type="radio" name="end-mode" value="pause" checked>
+            Pause
+            <input type="number" id="pause-minutes" value="3" min="0" step="1" aria-label="Minutes de pause">
+            <small>min</small>
+          </label>
+          <label class="choice collation">
+            <input type="radio" name="end-mode" value="collation">
+            Collation
+            <input type="number" id="collation-minutes" value="8" min="0" step="1" aria-label="Minutes de collation">
+            <small>min</small>
+          </label>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="start-btn">Démarrer</button>
+        <button id="reset-btn">Réinitialiser</button>
+      </div>
+    </div>
+
+    <!-- Ligne 2 : images -->
+    <div class="row">
+      <div class="row-title">Images</div>
+      <div class="field">
+        <label for="file-base">Décompte</label>
+        <input type="file" id="file-base" accept="image/*">
+      </div>
+      <div class="field">
+        <label for="file-pause">Pause</label>
+        <input type="file" id="file-pause" accept="image/*">
+      </div>
+      <div class="field">
+        <label for="file-collation">Collation</label>
+        <input type="file" id="file-collation" accept="image/*">
+      </div>
+    </div>
+
+    <!-- Ligne 3 : défi -->
+    <div class="row defi-off" id="defi-row">
+      <label class="toggle"><input type="checkbox" id="defi-on"> Défi</label>
+      <div class="defi-fields">
+        <div class="field">
+          <label for="defi-at">À (min)</label>
+          <input type="number" id="defi-at" value="10" min="0" step="1">
+        </div>
+        <div class="field">
+          <span class="lbl">Compté</span>
+          <div class="choices" role="radiogroup">
+            <label class="choice mode"><input type="radio" name="defi-mode" value="start" checked> après le début</label>
+            <label class="choice mode"><input type="radio" name="defi-mode" value="end"> avant la fin</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="defi-duration">Durée (min)</label>
+          <input type="number" id="defi-duration" value="5" min="1" step="1">
+        </div>
+        <div class="field">
+          <label for="file-defi">Image du défi</label>
+          <input type="file" id="file-defi" accept="image/*">
+        </div>
+      </div>
+      <div class="msg" id="defi-msg"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="image-panel">
+      <img id="preview-img" alt="Image affichée">
+      <div class="placeholder" id="img-placeholder">Aucune image importée</div>
+    </div>
+
+    <div class="timer-panel state-normal" id="timer-panel">
+      <div class="time-display" id="time-display">30:00</div>
+      <div class="status-badge" id="status-badge">En cours</div>
+      <div class="defi-countdown" id="defi-countdown"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  const app = $('app');
+  const imgEl = $('preview-img');
+  const placeholderEl = $('img-placeholder');
+  const totalInput = $('total-minutes');
+  const pauseInput = $('pause-minutes');
+  const collationInput = $('collation-minutes');
+  const defiOn = $('defi-on');
+  const defiRow = $('defi-row');
+  const defiAt = $('defi-at');
+  const defiDuration = $('defi-duration');
+  const defiMsg = $('defi-msg');
+  const timeDisplay = $('time-display');
+  const statusBadge = $('status-badge');
+  const defiCountdown = $('defi-countdown');
+  const timerPanel = $('timer-panel');
+
+  // ---------- Images ----------
+  const images = { base: null, pause: null, collation: null, defi: null };
+
+  function bindImage(inputId, key) {
+    $(inputId).addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (images[key]) URL.revokeObjectURL(images[key]);
+      images[key] = URL.createObjectURL(file);
+      refresh();
+    });
+  }
+  bindImage('file-base', 'base');
+  bindImage('file-pause', 'pause');
+  bindImage('file-collation', 'collation');
+  bindImage('file-defi', 'defi');
+
+  function showImage(key) {
+    // Si l'image de la phase n'est pas importée, on garde l'image de décompte
+    const url = images[key] || images.base;
+    if (url) {
+      if (imgEl.src !== url) imgEl.src = url;
+      imgEl.style.display = 'block';
+      placeholderEl.style.display = 'none';
+    } else {
+      imgEl.style.display = 'none';
+      placeholderEl.style.display = 'block';
+    }
+  }
+
+  // ---------- Réglages ----------
+  const minutes = (input, fallback, min) => Math.max(min, parseInt(input.value, 10) || fallback);
+  const endMode = () => document.querySelector('input[name="end-mode"]:checked').value;
+  const defiMode = () => document.querySelector('input[name="defi-mode"]:checked').value;
+
+  let totalSeconds = 0;
+  let endSeconds = 0;      // durée de la pause/collation (comptée depuis la fin)
+  let defiStart = null;    // en secondes restantes (le défi commence quand il reste defiStart s.)
+  let defiEnd = null;      // le défi se termine quand il reste defiEnd s.
+  let remainingSeconds = 0;
+  let timerInterval = null;
+
+  function readSettings() {
+    totalSeconds = minutes(totalInput, 30, 1) * 60;
+    const endInput = endMode() === 'pause' ? pauseInput : collationInput;
+    endSeconds = Math.min(minutes(endInput, 0, 0) * 60, totalSeconds);
+
+    defiStart = defiEnd = null;
+    defiMsg.textContent = '';
+    if (defiOn.checked) {
+      const at = minutes(defiAt, 0, 0) * 60;
+      const dur = minutes(defiDuration, 1, 1) * 60;
+      // Convertit en "secondes restantes"
+      let start = defiMode() === 'start' ? totalSeconds - at : at;
+      start = Math.min(start, totalSeconds);
+      const end = Math.max(start - dur, 0);
+      if (start <= 0) {
+        defiMsg.textContent = 'Le défi tombe après la fin du minuteur.';
+      } else {
+        defiStart = start;
+        defiEnd = end;
+        if (start - dur < 0) defiMsg.textContent = 'Le défi sera coupé par la fin du minuteur.';
+      }
+    }
+  }
+
+  // ---------- Affichage ----------
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+
+  const LABELS = { normal: 'En cours', pause: 'Pause', collation: 'Collation', defi: 'Défi!', done: 'Terminé' };
+
+  function setState(state) {
+    timerPanel.className = `timer-panel state-${state}`;
+    statusBadge.textContent = LABELS[state];
+  }
+
+  function currentState() {
+    if (remainingSeconds <= 0) return 'done';
+    // Le défi a priorité sur la pause/collation pendant sa fenêtre
+    if (defiStart !== null && remainingSeconds <= defiStart && remainingSeconds > defiEnd) return 'defi';
+    if (remainingSeconds <= endSeconds) return endMode();
+    return 'normal';
+  }
+
+  function refresh() {
+    timeDisplay.textContent = formatTime(remainingSeconds);
+    const state = currentState();
+    setState(state);
+    defiCountdown.textContent = state === 'defi'
+      ? `Temps pour le défi : ${formatTime(remainingSeconds - defiEnd)}`
+      : '';
+    showImage(state === 'normal' || state === 'done' ? 'base' : state);
+  }
+
+  function tick() {
+    remainingSeconds = Math.max(0, remainingSeconds - 1);
+    refresh();
+    if (remainingSeconds === 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  // ---------- Boutons ----------
+  $('start-btn').addEventListener('click', () => {
+    readSettings();
+    remainingSeconds = totalSeconds;
+    if (timerInterval) clearInterval(timerInterval);
+    refresh();
+    timerInterval = setInterval(tick, 1000);
+    app.classList.add('running');
+  });
+
+  $('reset-btn').addEventListener('click', () => {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+    readSettings();
+    remainingSeconds = totalSeconds;
+    refresh();
+  });
+
+  // Rouvre les réglages sans arrêter le minuteur
+  $('settings-btn').addEventListener('click', () => app.classList.remove('running'));
+
+  defiOn.addEventListener('change', () => {
+    defiRow.classList.toggle('defi-off', !defiOn.checked);
+    if (!timerInterval) { readSettings(); refresh(); }
+  });
+
+  // Mise à jour de l'aperçu quand on change un réglage à l'arrêt
+  document.querySelectorAll('.controls input:not([type="file"])').forEach((el) => {
+    el.addEventListener('change', () => {
+      if (!timerInterval) {
+        readSettings();
+        remainingSeconds = totalSeconds;
+        refresh();
+      }
+    });
+  });
+
+  // Affichage initial
+  readSettings();
+  remainingSeconds = totalSeconds;
+  refresh();
+
+  // Empêche l'écran de s'éteindre pendant que la page est ouverte
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+  }
+  requestWakeLock();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
+</script>
+</body>
+</html>
